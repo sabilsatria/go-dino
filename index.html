@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catch the Stars</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Trebuchet MS", sans-serif;
+    text-align: center;
+    color: #17466b;
+    background: linear-gradient(#69c9f5, #e1f7ff);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+h1 {
+    margin: 5px 0;
+    font-size: 38px;
+    color: #fff;
+    text-shadow: 2px 3px #429bd0;
+}
+
+.subtitle {
+    margin: 8px 0 18px;
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.stat {
+    background: white;
+    padding: 10px 18px;
+    border-radius: 15px;
+    font-weight: bold;
+    box-shadow: 0 4px 10px #479bc733;
+}
+
+#game {
+    width: min(800px, 100%);
+    height: 480px;
+    margin: auto;
+    position: relative;
+    overflow: hidden;
+    border: 5px solid white;
+    border-radius: 22px;
+    background: linear-gradient(#69c9f5 0%, #bcecff 100%);
+    box-shadow: 0 8px 20px #3988b544;
+}
+
+.cloud {
+    position: absolute;
+    font-size: 55px;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.cloud.one {
+    top: 35px;
+    left: 7%;
+}
+
+.cloud.two {
+    top: 100px;
+    right: 8%;
+}
+
+.cloud.three {
+    top: 220px;
+    left: 30%;
+    font-size: 38px;
+}
+
+#player {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    width: 100px;
+    height: 112px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    z-index: 5;
+}
+
+#lumi {
+    font-size: 55px;
+    line-height: 1.1;
+    filter: drop-shadow(0 3px 2px #3d8db544);
+}
+
+#basket {
+    font-size: 43px;
+    line-height: 1;
+}
+
+.falling {
+    position: absolute;
+    font-size: 32px;
+    z-index: 3;
+    user-select: none;
+}
+
+#overlay {
+    position: absolute;
+    inset: 0;
+    background: #287eafbb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: white;
+    z-index: 10;
+}
+
+#overlay h2 {
+    font-size: 32px;
+    margin: 5px;
+}
+
+#overlay p {
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+button {
+    border: none;
+    border-radius: 25px;
+    padding: 13px 28px;
+    background: #ffe477;
+    color: #17466b;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #d9b94c;
+}
+
+button:hover {
+    background: #fff0a9;
+    transform: translateY(-2px);
+}
+
+.instructions {
+    margin: 16px auto;
+    max-width: 600px;
+    line-height: 1.7;
+}
+
+@media (max-width: 500px) {
+    #game {
+        height: 420px;
+    }
+
+    h1 {
+        font-size: 30px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<h1>⭐ Catch the Stars ⭐</h1>
+<p class="subtitle">Bantu Lumi mengumpulkan bintang ajaib!</p>
+
+<div class="stats">
+    <div class="stat">⭐ Skor: <span id="score">0</span></div>
+    <div class="stat">❤️ Nyawa: <span id="lives">3</span></div>
+    <div class="stat">⏰ Waktu: <span id="time">60</span>s</div>
+</div>
+
+<div id="game">
+    <div class="cloud one">☁️</div>
+    <div class="cloud two">☁️</div>
+    <div class="cloud three">☁️</div>
+
+    <div id="player">
+        <div id="lumi">🦖</div>
+        <div id="basket">🧺</div>
+    </div>
+
+    <div id="overlay">
+        <h2 id="message">Ayo, bantu Lumi!</h2>
+        <p id="description">
+            Tangkap 🍓 bintang emas dan hindari 💣 bulan gelap.
+            Gunakan tombol ← → untuk bergerak.
+        </p>
+        <button id="startButton">MULAI BERMAIN</button>
+    </div>
+</div>
+
+<div class="instructions">
+    <b>Cara bermain:</b><br>
+    ⬅️ ➡️ Gunakan tombol panah kiri dan kanan<br>
+    🍓 Bintang emas = +10 poin<br>
+    💣 Bulan gelap = -1 nyawa<br>
+    🎯 Kumpulkan bintang sebanyak mungkin dalam 60 detik!
+</div>
+
+<script>
+const game = document.getElementById("game");
+const player = document.getElementById("player");
+const scoreText = document.getElementById("score");
+const livesText = document.getElementById("lives");
+const timeText = document.getElementById("time");
+const overlay = document.getElementById("overlay");
+const message = document.getElementById("message");
+const description = document.getElementById("description");
+const startButton = document.getElementById("startButton");
+
+let score = 0;
+let lives = 3;
+let timeLeft = 60;
+let playerX = 0;
+let keys = {};
+let fallingObjects = [];
+let running = false;
+let lastFrame = 0;
+let spawnTimer = 0;
+let animationId;
+let clock;
+
+function updateStats() {
+    scoreText.textContent = score;
+    livesText.textContent = lives;
+    timeText.textContent = timeLeft;
+}
+
+function movePlayer() {
+    const maxX = game.clientWidth - player.offsetWidth;
+
+    if (keys["ArrowLeft"] || keys["a"] || keys["A"]) {
+        playerX -= 6;
+    }
+
+    if (keys["ArrowRight"] || keys["d"] || keys["D"]) {
+        playerX += 6;
+    }
+
+    playerX = Math.max(0, Math.min(maxX, playerX));
+    player.style.left = playerX + "px";
+    player.style.transform = "none";
+}
+
+function createObject() {
+    const element = document.createElement("div");
+    element.className = "falling";
+
+    const isHazard = Math.random() < 0.25;
+    element.textContent = isHazard ? "💣" : "🍓";
+
+    const x = Math.random() * (game.clientWidth - 40);
+    element.style.left = x + "px";
+    element.style.top = "-40px";
+    game.appendChild(element);
+
+    fallingObjects.push({
+        element: element,
+        x: x,
+        y: -40,
+        speed: 2 + Math.random() * 2,
+        hazard: isHazard
+    });
+}
+
+function endGame() {
+    running = false;
+    clearInterval(clock);
+    cancelAnimationFrame(animationId);
+
+    overlay.style.display = "flex";
+    message.textContent = lives <= 0 ? "Yah, nyawa habis!" : "Waktu habis!";
+    description.textContent =
+        "Skor akhir kamu: " + score +
+        ". Lumi berterima kasih sudah bermain! ⭐";
+    startButton.textContent = "MAIN LAGI";
+}
+
+function gameLoop(timestamp) {
+    if (!running) return;
+
+    const delta = Math.min((timestamp - (lastFrame || timestamp)) / 16.67, 2);
+    lastFrame = timestamp;
+
+    movePlayer();
+
+    spawnTimer += delta;
+    if (spawnTimer > 32) {
+        createObject();
+        spawnTimer = 0;
+    }
+
+    const playerRect = player.getBoundingClientRect();
+    const gameRect = game.getBoundingClientRect();
+
+    for (let i = fallingObjects.length - 1; i >= 0; i--) {
+        const obj = fallingObjects[i];
+
+        obj.y += obj.speed * delta;
+        obj.element.style.top = obj.y + "px";
+
+        const objRect = obj.element.getBoundingClientRect();
+
+        const caught =
+            objRect.bottom >= playerRect.top + 20 &&
+            objRect.top <= playerRect.bottom &&
+            objRect.right >= playerRect.left + 10 &&
+            objRect.left <= playerRect.right - 10;
+
+        if (caught) {
+            if (obj.hazard) {
+                lives--;
+            } else {
+                score += 10;
+            }
+
+            obj.element.remove();
+            fallingObjects.splice(i, 1);
+            updateStats();
+
+            if (lives <= 0) {
+                endGame();
+                return;
+            }
+        } else if (obj.y > game.clientHeight) {
+            obj.element.remove();
+            fallingObjects.splice(i, 1);
+        }
+    }
+
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+    cancelAnimationFrame(animationId);
+    clearInterval(clock);
+
+    fallingObjects.forEach(obj => obj.element.remove());
+    fallingObjects = [];
+
+    score = 0;
+    lives = 3;
+    timeLeft = 60;
+    playerX = (game.clientWidth - player.offsetWidth) / 2;
+    keys = {};
+    lastFrame = 0;
+    spawnTimer = 0;
+
+    player.style.left = playerX + "px";
+    player.style.transform = "none";
+
+    updateStats();
+    overlay.style.display = "none";
+    running = true;
+
+    clock = setInterval(() => {
+        if (!running) return;
+
+        timeLeft--;
+        updateStats();
+
+        if (timeLeft <= 0) {
+            endGame();
+        }
+    }, 1000);
+
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener("keydown", event => {
+    if (["ArrowLeft", "ArrowRight", " "].includes(event.key)) {
+        event.preventDefault();
+    }
+
+    keys[event.key] = true;
+});
+
+document.addEventListener("keyup", event => {
+    keys[event.key] = false;
+});
+
+startButton.addEventListener("click", startGame);
+
+playerX = (game.clientWidth - player.offsetWidth) / 2;
+player.style.left = playerX + "px";
+player.style.transform = "none";
+</script>
+
+</body>
+</html>
